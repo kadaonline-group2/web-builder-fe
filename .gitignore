@@ -1,0 +1,7 @@
+node_modules
+dist
+.env
+*.local
+FRD_AI_Website_Builder_UMKM_v1.2_2_Backend_AI_1_Frontend.docx
+Scrum_Project_Plan_AI_Website_Builder_UMKM_v1.2_2_Backend_AI_1_Frontend.docx
+FRONTEND_ROLE_GUIDE.md
