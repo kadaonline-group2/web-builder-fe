@@ -32,16 +32,19 @@ export const mockWebsite: WebsiteState = {
       name: "Kopi Tubruk",
       description: "Kopi hitam khas dengan ampas alami.",
       priceEstimate: "Rp10.000",
+      iconKeyword: "coffee",
     },
     {
       name: "Roti Bakar Coklat Keju",
       description: "Roti bakar dengan isian melimpah.",
       priceEstimate: "Rp15.000",
+      iconKeyword: "bread",
     },
     {
       name: "Es Kopi Susu",
       description: "Kopi susu dingin dengan rasa manis pas.",
       priceEstimate: "Rp13.000",
+      iconKeyword: "milk",
     },
   ],
   testimonials: [
@@ -89,8 +92,4 @@ export async function mockGenerateWebsite(
   }
 
   return next;
-}
-
-export async function mockDownload(): Promise<void> {
-  await new Promise((resolve) => window.setTimeout(resolve, 450));
 }

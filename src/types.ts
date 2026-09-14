@@ -1,5 +1,5 @@
 export type TemplateId =
-  | "template-service"
+  | "template-services"
   | "template-fnb"
   | "template-retail";
 
@@ -23,12 +23,13 @@ export interface WebsiteState {
   };
   about: {
     story: string;
-    highlights: string[];
+    highlights?: string[];
   };
   services: Array<{
     name: string;
     description: string;
     priceEstimate: string;
+    iconKeyword?: string;
   }>;
   testimonials: Array<{
     customerName: string;
@@ -37,8 +38,51 @@ export interface WebsiteState {
   contact: {
     whatsappNumber: string;
     address: string;
-    instagram: string;
+    instagram?: string;
   };
+}
+
+export interface GenerateRequest {
+  businessDescription: string;
+}
+
+export interface ReviseRequest {
+  currentState: WebsiteState;
+  instruction: string;
+}
+
+export interface WebsiteStateResponse {
+  state: WebsiteState;
+  isFallback: boolean;
+  requestId?: string;
+  latencyMs?: number;
+  revisionApplied?: boolean;
+  changedPaths?: string[];
+  fallbackReason?: string;
+}
+
+export interface ApiErrorBody {
+  success: false;
+  error: {
+    code: string;
+    message: string;
+    details?: unknown;
+  };
+  meta?: {
+    requestId?: string;
+  };
+}
+
+export class WebsiteApiError extends Error {
+  code: string;
+  details?: unknown;
+
+  constructor(body: ApiErrorBody["error"]) {
+    super(body.message);
+    this.name = "WebsiteApiError";
+    this.code = body.code;
+    this.details = body.details;
+  }
 }
 
 export interface ChatMessage {

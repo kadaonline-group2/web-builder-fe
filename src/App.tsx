@@ -1,7 +1,13 @@
 import { useState } from "react";
-import { mockDownload, mockGenerateWebsite, mockWebsite } from "./mock";
+import { websiteApi } from "./api";
+import { mockWebsite } from "./mock";
 import { renderWebsite, templatePalettes } from "./renderer";
-import type { ChatMessage, TemplateId, WebsiteState } from "./types";
+import {
+  WebsiteApiError,
+  type ChatMessage,
+  type TemplateId,
+  type WebsiteState,
+} from "./types";
 
 const quickPrompts = [
   "Ganti warna jadi navy",
@@ -11,7 +17,7 @@ const quickPrompts = [
 
 const templateOptions: Array<{ id: TemplateId; label: string; name: string }> =
   [
-    { id: "template-service", label: "1", name: "Jasa" },
+    { id: "template-services", label: "1", name: "Jasa" },
     { id: "template-fnb", label: "2", name: "F&B" },
     { id: "template-retail", label: "3", name: "Retail" },
   ];
@@ -46,19 +52,34 @@ function App() {
     setIsGenerating(true);
     setNotice("Menyusun perubahan...");
     try {
-      const nextWebsite = await mockGenerateWebsite(cleanPrompt, website);
-      setWebsite(nextWebsite);
+      const result = await websiteApi.revise({
+        currentState: website,
+        instruction: cleanPrompt,
+      });
+      setWebsite(result.state);
       setMessages((current) => [
         ...current,
         {
           id: Date.now() + 1,
           role: "assistant",
-          text: "Preview diperbarui. Coba instruksi lain untuk mengeksplorasi tampilannya.",
+          text: result.isFallback
+            ? "Preview diperbarui dengan data fallback. Coba instruksi lain untuk mengeksplorasi tampilannya."
+            : "Preview diperbarui. Coba instruksi lain untuk mengeksplorasi tampilannya.",
         },
       ]);
-      setNotice("Preview diperbarui");
-    } catch {
-      setNotice("Perubahan gagal dibuat. Coba lagi.");
+      setNotice(
+        result.isFallback
+          ? result.fallbackReason
+            ? `Preview diperbarui dengan fallback: ${result.fallbackReason}`
+            : "Preview diperbarui dengan fallback"
+          : "Preview diperbarui",
+      );
+    } catch (error) {
+      setNotice(
+        error instanceof WebsiteApiError
+          ? error.message
+          : "Perubahan gagal dibuat. Coba lagi.",
+      );
     } finally {
       setIsGenerating(false);
     }
@@ -67,9 +88,18 @@ function App() {
   async function downloadWebsite() {
     setIsDownloading(true);
     setNotice("Menyiapkan file website...");
-    await mockDownload();
-    setIsDownloading(false);
-    setNotice("File website siap diunduh");
+    try {
+      await websiteApi.download(website);
+      setNotice("File website siap diunduh");
+    } catch (error) {
+      setNotice(
+        error instanceof WebsiteApiError
+          ? error.message
+          : "Export website gagal. Coba lagi.",
+      );
+    } finally {
+      setIsDownloading(false);
+    }
   }
 
   return (
@@ -228,7 +258,7 @@ function App() {
         <footer className="status-bar">
           <span>{notice}</span>
           <span>
-            <i /> Mock data / v1 contract
+            <i /> Mock data / v1.1 contract
           </span>
         </footer>
       </main>
