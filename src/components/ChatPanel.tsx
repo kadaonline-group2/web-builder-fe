@@ -1,0 +1,106 @@
+import type { ChatMessage } from "../types";
+
+export const DEMO_BUSINESS_PROMPT =
+  "Warung Kopi Sejahtera, jual kopi tubruk dan roti bakar di Surabaya, target anak muda nugas, wa 08123456789";
+
+export const quickPrompts = [
+  { id: "demo-business", label: "Contoh usaha kopi", prompt: DEMO_BUSINESS_PROMPT },
+  {
+    id: "color",
+    label: "Ganti warna cokelat tua",
+    prompt: "Ganti nuansa warna jadi cokelat tua klasik",
+  },
+  {
+    id: "add-menu",
+    label: "Tambah pisang goreng keju",
+    prompt: "Tambahkan menu baru: Pisang Goreng Keju harga 15 ribu",
+  },
+];
+
+interface ChatPanelProps {
+  messages: ChatMessage[];
+  prompt: string;
+  isGenerating: boolean;
+  hasGenerated: boolean;
+  onPromptChange: (value: string) => void;
+  onSubmit: (value?: string) => void;
+}
+
+export function ChatPanel({
+  messages,
+  prompt,
+  isGenerating,
+  hasGenerated,
+  onPromptChange,
+  onSubmit,
+}: ChatPanelProps) {
+  return (
+    <aside className="chat-panel">
+      <div className="brand-lockup">
+        <span className="brand-mark">R</span>
+        <div>
+          <strong>Nama Studio</strong>
+          <span>AI website builder</span>
+        </div>
+      </div>
+      <div className="chat-heading">
+        <p className="kicker">Workspace / Draft 01</p>
+        <h1>Bangun situs yang terasa seperti kamu.</h1>
+        <p>
+          Ceritakan nama usaha, produk atau layanan, lokasi, dan nomor WhatsApp.
+          Contoh: {DEMO_BUSINESS_PROMPT}
+        </p>
+      </div>
+      <div className="message-list">
+        {messages.map((message) => (
+          <div className={`message ${message.role}`} key={message.id}>
+            <span>
+              {message.role === "assistant" ? "Nama Studio" : "Kamu"}
+            </span>
+            <p>{message.text}</p>
+          </div>
+        ))}
+      </div>
+      <div className="composer">
+        <textarea
+          value={prompt}
+          onChange={(event) => onPromptChange(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key !== "Enter") return;
+            if (event.shiftKey) return;
+            event.preventDefault();
+            onSubmit();
+          }}
+          placeholder="Contoh: nama usaha, produk, lokasi, dan nomor WhatsApp"
+          rows={3}
+          disabled={isGenerating}
+        />
+        <div className="composer-footer">
+          <span>Enter kirim · Shift+Enter baris baru</span>
+          <button
+            className="send-button"
+            type="button"
+            onClick={() => onSubmit()}
+            disabled={isGenerating}
+          >
+            {isGenerating ? (hasGenerated ? "Merevisi..." : "Menyusun...") : "Kirim"}{" "}
+            <span>↗</span>
+          </button>
+        </div>
+      </div>
+      <div className="quick-prompts">
+        <span className="kicker">Coba cepat</span>
+        {quickPrompts.map((item) => (
+          <button
+            type="button"
+            key={item.id}
+            onClick={() => onSubmit(item.prompt)}
+            disabled={isGenerating}
+          >
+            {item.label} <span>↗</span>
+          </button>
+        ))}
+      </div>
+    </aside>
+  );
+}

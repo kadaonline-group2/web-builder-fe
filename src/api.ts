@@ -1,4 +1,4 @@
-import { mockGenerateWebsite, mockWebsite } from "./mock";
+import { mockGenerateWebsite } from "./mock";
 import { renderWebsite } from "./renderer";
 import { WebsiteApiError } from "./types";
 import type {
@@ -134,11 +134,14 @@ function parseStateResponse(payload: unknown): WebsiteStateResponse {
   };
 }
 
+type FetchLike = typeof fetch;
+
 async function requestJson<T>(
   path: string,
   body: T,
+  fetchImpl: FetchLike,
 ): Promise<WebsiteStateResponse> {
-  const response = await fetch(path, {
+  const response = await fetchImpl(path, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -163,74 +166,90 @@ async function requestJson<T>(
   return parseStateResponse(payload);
 }
 
+function triggerDownload(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
 export interface WebsiteApi {
   generate(request: GenerateRequest): Promise<WebsiteStateResponse>;
   revise(request: ReviseRequest): Promise<WebsiteStateResponse>;
   download(state: WebsiteState): Promise<void>;
 }
 
-const mockApi: WebsiteApi = {
-  async generate({ businessDescription }) {
-    return {
-      state: await mockGenerateWebsite(businessDescription, mockWebsite),
-      isFallback: false,
-      requestId: "mock-generate",
-      latencyMs: 650,
-    };
-  },
-  async revise({ currentState, instruction }) {
-    return {
-      state: await mockGenerateWebsite(instruction, currentState),
-      isFallback: false,
-      requestId: "mock-revise",
-      latencyMs: 650,
-      revisionApplied: true,
-    };
-  },
-  async download(state) {
-    const blob = new Blob([renderWebsite(state)], { type: "text/html" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `${state.meta.businessName.toLowerCase().replace(/[^a-z0-9]+/g, "-") || "website"}.html`;
-    link.click();
-    URL.revokeObjectURL(url);
-  },
-};
-
-const realApi: WebsiteApi = {
-  generate: (request) => requestJson(apiPaths.generate, request),
-  revise: (request) => requestJson(apiPaths.revise, request),
-  download: async (state) => {
-    const response = await fetch(apiPaths.export, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-      body: JSON.stringify({ currentState: state }),
-    });
-    if (!response.ok) {
-      const payload: unknown = await response.json().catch(() => null);
-      const errorBody = isRecord(payload)
-        ? (payload as Partial<ApiErrorBody>)
-        : {};
-      throw new WebsiteApiError(
-        errorBody.error ?? {
-          code: `HTTP_${response.status}`,
-          message: "Export website gagal.",
-        },
+function createMockApi(): WebsiteApi {
+  return {
+    async generate({ businessDescription }) {
+      return {
+        state: await mockGenerateWebsite(businessDescription),
+        isFallback: false,
+        requestId: "mock-generate",
+        latencyMs: 650,
+      };
+    },
+    async revise({ currentState, instruction }) {
+      return {
+        state: await mockGenerateWebsite(instruction, currentState),
+        isFallback: false,
+        requestId: "mock-revise",
+        latencyMs: 650,
+        revisionApplied: true,
+      };
+    },
+    async download(state) {
+      triggerDownload(
+        new Blob([renderWebsite(state)], { type: "text/html" }),
+        `${state.meta.businessName.toLowerCase().replace(/[^a-z0-9]+/g, "-") || "website"}.html`,
       );
-    }
-    const blob = await response.blob();
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "website.zip";
-    link.click();
-    URL.revokeObjectURL(url);
-  },
-};
+    },
+  };
+}
 
-export const websiteApi: WebsiteApi =
-  import.meta.env.VITE_API_MODE === "real" ? realApi : mockApi;
+function createRealApi(fetchImpl: FetchLike): WebsiteApi {
+  return {
+    generate: (request) => requestJson(apiPaths.generate, request, fetchImpl),
+    revise: (request) => requestJson(apiPaths.revise, request, fetchImpl),
+    download: async (state) => {
+      const response = await fetchImpl(apiPaths.export, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({ currentState: state }),
+      });
+      if (!response.ok) {
+        const payload: unknown = await response.json().catch(() => null);
+        const errorBody = isRecord(payload)
+          ? (payload as Partial<ApiErrorBody>)
+          : {};
+        throw new WebsiteApiError(
+          errorBody.error ?? {
+            code: `HTTP_${response.status}`,
+            message: "Export website gagal.",
+          },
+        );
+      }
+      triggerDownload(await response.blob(), "website.zip");
+    },
+  };
+}
+
+export function createWebsiteApi(
+  options: {
+    mode?: string;
+    fetchImpl?: FetchLike;
+  } = {},
+): WebsiteApi {
+  const mode = options.mode ?? import.meta.env.VITE_API_MODE;
+  if (mode === "real") {
+    return createRealApi(options.fetchImpl ?? fetch);
+  }
+  return createMockApi();
+}
+
+export const websiteApi: WebsiteApi = createWebsiteApi();

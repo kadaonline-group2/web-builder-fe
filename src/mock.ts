@@ -1,4 +1,5 @@
 import type { WebsiteState } from "./types";
+import { templatePalettes } from "./rendering/theme";
 
 export const mockWebsite: WebsiteState = {
   templateId: "template-fnb",
@@ -64,32 +65,125 @@ export const mockWebsite: WebsiteState = {
   },
 };
 
+const wait = (ms: number) =>
+  new Promise((resolve) => {
+    window.setTimeout(resolve, ms);
+  });
+
+function detectTemplate(prompt: string): WebsiteState["templateId"] {
+  const lower = prompt.toLowerCase();
+  if (/jasa|konsultan|studio|servis|service/.test(lower)) {
+    return "template-services";
+  }
+  if (/retail|toko|produk|fashion|barang|kemeja/.test(lower)) {
+    return "template-retail";
+  }
+  return "template-fnb";
+}
+
+function formatRupiah(amount: number): string {
+  return `Rp${amount.toLocaleString("id-ID")}`;
+}
+
+function parseAddedService(prompt: string): WebsiteState["services"][number] | null {
+  if (!/tambah/.test(prompt.toLowerCase())) return null;
+  const afterColon = prompt.split(":").slice(1).join(":").trim();
+  const priceMatch = afterColon.match(/harga\s+(.+)$/i);
+  const name = (
+    priceMatch
+      ? afterColon.slice(0, priceMatch.index).trim()
+      : afterColon || "Item baru"
+  ).replace(/[.]+$/, "");
+  let priceEstimate = "Rp15.000";
+  if (priceMatch) {
+    const raw = priceMatch[1].toLowerCase();
+    const numeric = Number(raw.replace(/[^\d]/g, ""));
+    if (Number.isFinite(numeric) && numeric > 0) {
+      priceEstimate = /ribu|rb/.test(raw)
+        ? formatRupiah(numeric * 1000)
+        : formatRupiah(numeric);
+    }
+  }
+  return {
+    name: name || "Item baru",
+    description: `${name || "Item baru"} ditambahkan dari permintaan kamu.`,
+    priceEstimate,
+  };
+}
+
 export async function mockGenerateWebsite(
   prompt: string,
-  current: WebsiteState,
+  current?: WebsiteState,
 ): Promise<WebsiteState> {
-  await new Promise((resolve) => window.setTimeout(resolve, 650));
-  const next = structuredClone(current);
-  const lowerPrompt = prompt.toLowerCase();
+  await wait(import.meta.env.MODE === "test" ? 0 : 650);
+  const lower = prompt.toLowerCase();
 
-  if (lowerPrompt.includes("navy")) {
+  if (!current) {
+    const templateId = detectTemplate(prompt);
+    const palette = templatePalettes[templateId];
+    const next = structuredClone(mockWebsite);
+    next.templateId = templateId;
+    next.theme = {
+      ...next.theme,
+      primaryColor: palette.primaryColor,
+      accentColor: palette.accentColor,
+    };
+    const nameGuess = prompt.split(",")[0]?.trim();
+    if (nameGuess) {
+      next.meta = {
+        ...next.meta,
+        businessName: nameGuess,
+      };
+    }
+    if (templateId === "template-services") {
+      next.meta.category = "Jasa";
+    } else if (templateId === "template-retail") {
+      next.meta.category = "Retail";
+    }
+    next.hero = {
+      ...next.hero,
+      subtitle: prompt.slice(0, 180),
+    };
+    return next;
+  }
+
+  const next = structuredClone(current);
+  if (lower.includes("navy")) {
     next.theme = {
       ...next.theme,
       primaryColor: "#12304A",
       accentColor: "#D4A373",
     };
-  } else if (lowerPrompt.includes("hijau") || lowerPrompt.includes("green")) {
+    return next;
+  }
+  if (lower.includes("hijau") || lower.includes("green")) {
     next.theme = {
       ...next.theme,
       primaryColor: "#315C4A",
       accentColor: "#E8C07D",
     };
-  } else {
-    next.hero = {
-      ...next.hero,
-      subtitle: `Diperbarui dari brief kamu: ${prompt}`,
-    };
+    return next;
   }
-
+  if (
+    lower.includes("cokelat") ||
+    lower.includes("coklat") ||
+    lower.includes("klasik")
+  ) {
+    next.theme = {
+      ...next.theme,
+      primaryColor: "#5C3317",
+      accentColor: "#C4A574",
+    };
+    return next;
+  }
+  const added = parseAddedService(prompt);
+  if (added) {
+    next.services = [...next.services, added];
+    return next;
+  }
+  next.hero = {
+    ...next.hero,
+    subtitle: `Diperbarui dari brief kamu: ${prompt}`,
+  };
   return next;
 }
