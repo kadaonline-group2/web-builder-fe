@@ -1,9 +1,27 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { websiteApi } from "./api";
+import { copyText } from "./clipboard";
 import { ChatPanel } from "./components/ChatPanel";
 import { applyTemplatePalette, PreviewPanel } from "./components/PreviewPanel";
 import { mockWebsite } from "./mock";
-import { WebsiteApiError, type ChatMessage, type TemplateId, type WebsiteState } from "./types";
+import { renderWebsite } from "./renderer";
+import {
+  WebsiteApiError,
+  type ChatMessage,
+  type TemplateId,
+  type WebsiteState,
+} from "./types";
+
+const generateSteps = [
+  "Menyusun hero section...",
+  "Menyusun tentang kami...",
+  "Menyusun layanan dan testimoni...",
+];
+
+const reviseSteps = [
+  "Menerapkan perubahan...",
+  "Menjaga section lain tetap utuh...",
+];
 
 function App() {
   const [website, setWebsite] = useState<WebsiteState>(mockWebsite);
@@ -15,6 +33,7 @@ function App() {
   const [isDownloading, setIsDownloading] = useState(false);
   const [viewport, setViewport] = useState<"desktop" | "mobile">("desktop");
   const [notice, setNotice] = useState("Preview contoh siap diedit");
+  const [progressText, setProgressText] = useState(generateSteps[0]);
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: 1,
@@ -23,9 +42,22 @@ function App() {
     },
   ]);
 
+  useEffect(() => {
+    if (!isGenerating) return;
+    const steps = hasGenerated ? reviseSteps : generateSteps;
+    setProgressText(steps[0]);
+    let index = 0;
+    const timer = window.setInterval(() => {
+      index = (index + 1) % steps.length;
+      setProgressText(steps[index]);
+    }, 700);
+    return () => window.clearInterval(timer);
+  }, [isGenerating, hasGenerated]);
+
   async function submitPrompt(value = prompt) {
+    if (isGenerating) return;
     const cleanPrompt = value.trim();
-    if (!cleanPrompt || isGenerating) {
+    if (!cleanPrompt) {
       setNotice("Tulis instruksi dulu sebelum mengirim.");
       return;
     }
@@ -95,6 +127,15 @@ function App() {
     }
   }
 
+  async function copyHtml() {
+    try {
+      await copyText(renderWebsite(websiteRef.current));
+      setNotice("Kode HTML disalin ke clipboard");
+    } catch {
+      setNotice("Gagal menyalin HTML. Coba unduh filenya.");
+    }
+  }
+
   function changeTemplate(templateId: TemplateId) {
     setWebsite((current) => applyTemplatePalette(current, templateId));
   }
@@ -106,6 +147,7 @@ function App() {
         prompt={prompt}
         isGenerating={isGenerating}
         hasGenerated={hasGenerated}
+        progressText={progressText}
         onPromptChange={setPrompt}
         onSubmit={(value) => void submitPrompt(value)}
       />
@@ -119,6 +161,7 @@ function App() {
         onViewportChange={setViewport}
         onTemplateChange={changeTemplate}
         onDownload={() => void downloadWebsite()}
+        onCopyHtml={() => void copyHtml()}
       />
     </div>
   );

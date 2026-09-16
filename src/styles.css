@@ -292,6 +292,23 @@ button:disabled {
   color: #315c4a;
   background: #f9f6ef;
 }
+.copy-button {
+  border: 1px solid #cfc8bc;
+  border-radius: 6px;
+  color: #315c4a;
+  background: transparent;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 9px 12px;
+}
+.message.progress p {
+  color: #9a7b45;
+}
+.status-bar [role="status"] {
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: #efe8dc;
+}
 .preview-stage {
   display: grid;
   place-items: center;

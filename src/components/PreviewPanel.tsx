@@ -18,6 +18,7 @@ interface PreviewPanelProps {
   onViewportChange: (viewport: "desktop" | "mobile") => void;
   onTemplateChange: (templateId: TemplateId) => void;
   onDownload: () => void;
+  onCopyHtml: () => void;
 }
 
 export function PreviewPanel({
@@ -30,6 +31,7 @@ export function PreviewPanel({
   onViewportChange,
   onTemplateChange,
   onDownload,
+  onCopyHtml,
 }: PreviewPanelProps) {
   return (
     <main className="preview-panel">
@@ -89,6 +91,14 @@ export function PreviewPanel({
             disabled={isDownloading}
           >
             {isDownloading ? "..." : "Download"} <span>↓</span>
+          </button>
+          <button
+            className="copy-button"
+            type="button"
+            onClick={onCopyHtml}
+            disabled={isDownloading}
+          >
+            Salin HTML
           </button>
         </div>
       </header>

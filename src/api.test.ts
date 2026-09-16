@@ -30,6 +30,12 @@ describe("createWebsiteApi", () => {
     expect(generated.state.meta.businessName).toContain("Warung Kopi");
     expect(fetchImpl).not.toHaveBeenCalled();
 
+    const jasa = await api.generate({
+      businessDescription:
+        "Barbershop Ganteng, jasa potong rambut pria di Bandung, target mahasiswa, wa 08123456789",
+    });
+    expect(jasa.state.templateId).toBe("template-services");
+
     const revised = await api.revise({
       currentState: generated.state,
       instruction: "Ganti nuansa warna jadi cokelat tua klasik",

@@ -8,6 +8,7 @@ import { WebsiteApiError } from "./types";
 const generate = vi.fn();
 const revise = vi.fn();
 const download = vi.fn();
+const copyText = vi.fn();
 
 vi.mock("./api", () => ({
   websiteApi: {
@@ -17,11 +18,17 @@ vi.mock("./api", () => ({
   },
 }));
 
+vi.mock("./clipboard", () => ({
+  copyText: (...args: unknown[]) => copyText(...args),
+}));
+
 describe("App workflow", () => {
   beforeEach(() => {
     generate.mockReset();
     revise.mockReset();
     download.mockReset();
+    copyText.mockReset();
+    copyText.mockResolvedValue(undefined);
     generate.mockResolvedValue({
       state: {
         ...sampleWebsite,
@@ -123,5 +130,45 @@ describe("App workflow", () => {
     await user.click(screen.getByRole("button", { name: /kirim/i }));
     expect(generate).not.toHaveBeenCalled();
     expect(screen.getByRole("status")).toHaveTextContent(/instruksi/i);
+  });
+
+  it("shows stepwise progress while generating", async () => {
+    let finishGenerate: ((value: unknown) => void) | undefined;
+    generate.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finishGenerate = resolve;
+        }),
+    );
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: /contoh usaha kopi/i }));
+    expect(await screen.findByTestId("progress-status")).toHaveTextContent(
+      /menyusun hero section/i,
+    );
+    finishGenerate?.({
+      state: {
+        ...sampleWebsite,
+        hero: { ...sampleWebsite.hero, title: "Draft pertama" },
+      },
+      isFallback: false,
+    });
+    await waitFor(() => {
+      expect(screen.queryByTestId("progress-status")).not.toBeInTheDocument();
+    });
+  });
+
+  it("copies standalone HTML as an export fallback", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: "Salin HTML" }));
+    await waitFor(() => {
+      expect(copyText).toHaveBeenCalledTimes(1);
+    });
+    expect(String(copyText.mock.calls[0][0])).toContain("Warung Kopi Sejahtera");
+    expect(String(copyText.mock.calls[0][0])).toContain(
+      "https://wa.me/628123456789",
+    );
+    expect(screen.getByRole("status")).toHaveTextContent(/disalin/i);
   });
 });

@@ -3,8 +3,17 @@ import type { ChatMessage } from "../types";
 export const DEMO_BUSINESS_PROMPT =
   "Warung Kopi Sejahtera, jual kopi tubruk dan roti bakar di Surabaya, target anak muda nugas, wa 08123456789";
 
+export const DEMO_SERVICE_PROMPT =
+  "Barbershop Ganteng, jasa potong rambut pria di Bandung, target mahasiswa, wa 08123456789";
+
 export const quickPrompts = [
   { id: "demo-business", label: "Contoh usaha kopi", prompt: DEMO_BUSINESS_PROMPT },
+  { id: "demo-service", label: "Contoh usaha jasa", prompt: DEMO_SERVICE_PROMPT },
+  {
+    id: "color-navy",
+    label: "Ganti warna navy",
+    prompt: "Tolong ubah warna dominan jadi navy blue",
+  },
   {
     id: "color",
     label: "Ganti warna cokelat tua",
@@ -22,6 +31,7 @@ interface ChatPanelProps {
   prompt: string;
   isGenerating: boolean;
   hasGenerated: boolean;
+  progressText: string;
   onPromptChange: (value: string) => void;
   onSubmit: (value?: string) => void;
 }
@@ -31,6 +41,7 @@ export function ChatPanel({
   prompt,
   isGenerating,
   hasGenerated,
+  progressText,
   onPromptChange,
   onSubmit,
 }: ChatPanelProps) {
@@ -60,6 +71,12 @@ export function ChatPanel({
             <p>{message.text}</p>
           </div>
         ))}
+        {isGenerating ? (
+          <div className="message assistant progress" data-testid="progress-status">
+            <span>Nama Studio</span>
+            <p>{progressText}</p>
+          </div>
+        ) : null}
       </div>
       <div className="composer">
         <textarea
